@@ -21,8 +21,7 @@
 package org.jivesoftware.smack;
 
 import org.jivesoftware.smack.packet.Packet;
-import org.jivesoftware.smackx.packet.Ping;
-
+import org.jivesoftware.smackx.ping.packet.Ping;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -46,7 +45,7 @@ class PacketWriter {
     private Writer writer;
     private XMPPConnection connection;
     private final BlockingQueue<Packet> queue;
-    private boolean done;
+    volatile boolean done;
 
 	/**
 	 * Lock used to avoid access to incompatible values.
@@ -140,7 +139,7 @@ class PacketWriter {
         writerThread.setName("Smack Packet Writer (" + connection.connectionCounterValue + ")");
         writerThread.setDaemon(true);
     }
-
+    
     /**
      * Sends the specified packet to the server.
      *
@@ -236,14 +235,9 @@ class PacketWriter {
         synchronized (queue) {
             queue.notifyAll();
         }
-    }
-
-    /**
-     * Cleans up all resources used by the packet writer.
-     */
-    void cleanup() {
-        connection.interceptors.clear();
-        connection.sendListeners.clear();
+        // Interrupt the keep alive thread if one was created
+        if (keepAliveThread != null)
+                keepAliveThread.interrupt();
     }
 
     /**
@@ -254,11 +248,11 @@ class PacketWriter {
     private Packet nextPacket() {
         Packet packet = null;
         // Wait until there's a packet or we're done.
-		while (!done && (packet = queue.poll()) == null) {
+        while (!done && (packet = queue.poll()) == null) {
             try {
                 synchronized (queue) {
-					queue.wait();
-				}
+                    queue.wait();
+                }
             }
             catch (InterruptedException ie) {
                 // Do nothing
@@ -328,10 +322,16 @@ class PacketWriter {
                 }
             }
         }
-        catch (IOException ioe){
-            if (!done) {
+        catch (IOException ioe) {
+            // The exception can be ignored if the the connection is 'done'
+            // or if the it was caused because the socket got closed
+            if (!(done || connection.isSocketClosed())) {
                 done = true;
-                connection.packetReader.notifyConnectionError(ioe);
+                // packetReader could be set to null by an concurrent disconnect() call.
+                // Therefore Prevent NPE exceptions by checking packetReader.
+                if (connection.packetReader != null) {
+                        connection.notifyConnectionError(ioe);
+                }
             }
         }
     }

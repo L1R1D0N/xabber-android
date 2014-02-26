@@ -82,10 +82,6 @@ public class ConnectionManager implements OnInitializedListener,
 
 		SmackConfiguration.setPacketReplyTimeout(PACKET_REPLY_TIMEOUT);
 
-		ServiceDiscoveryManager.setIdentityType("handheld");
-		ServiceDiscoveryManager.setIdentityName(Application.getInstance()
-				.getString(R.string.client_name));
-
 		SASLAuthentication.registerSASLMechanism("X-MESSENGER-OAUTH2",
 				XMessengerOAuth2.class);
 		SASLAuthentication.supportSASLMechanism("X-MESSENGER-OAUTH2");
@@ -102,8 +98,10 @@ public class ConnectionManager implements OnInitializedListener,
 				.addConnectionCreationListener(new ConnectionCreationListener() {
 					@Override
 					public void connectionCreated(final Connection connection) {
-						ServiceDiscoveryManager.getInstanceFor(connection)
-								.addFeature("sslc2s");
+						ServiceDiscoveryManager sIm = ServiceDiscoveryManager.getInstanceFor(connection);
+						sIm.addFeature("sslc2s");
+						sIm.setIdentityType("handheld");
+						sIm.setIdentityName(Application.getInstance().getString(R.string.client_name));
 					}
 				});
 	}

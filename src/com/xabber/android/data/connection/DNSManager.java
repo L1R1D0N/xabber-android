@@ -103,11 +103,11 @@ public class DNSManager {
 			}
 			for (Resolver check : resolver.getResolvers())
 				if (check instanceof SimpleResolver) {
-					LogManager.i(check, "Current timeout is "
-							+ ((SimpleResolver) check).getTimeout());
+//					LogManager.i(check, "Current timeout is "
+//							+ ((SimpleResolver) check).getTimeout());
 					((SimpleResolver) check).setTimeout(30);
-					LogManager.i(check, "new value is "
-							+ ((SimpleResolver) check).getTimeout());
+//					LogManager.i(check, "new value is "
+//							+ ((SimpleResolver) check).getTimeout());
 				} else {
 					LogManager.i(this, "Not simple resolver!!!?" + check);
 				}

@@ -20,12 +20,13 @@
 
 package org.jivesoftware.smackx.packet;
 
-import org.jivesoftware.smack.packet.PacketExtension;
-import org.jivesoftware.smackx.FormField;
-import org.xmlpull.v1.XmlSerializer;
-
 import com.xabber.xmpp.Instance;
 import com.xabber.xmpp.SerializerUtils;
+
+import org.jivesoftware.smack.packet.PacketExtension;
+import org.jivesoftware.smackx.Form;
+import org.jivesoftware.smackx.FormField;
+import org.xmlpull.v1.XmlSerializer;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -131,11 +132,11 @@ public class DataForm implements PacketExtension, Instance {
     }
 
     public String getElementName() {
-        return ELEMENT_NAME;
+        return Form.ELEMENT;
     }
 
     public String getNamespace() {
-        return NAMESPACE;
+        return Form.NAMESPACE;
     }
 
     /**
@@ -203,7 +204,22 @@ public class DataForm implements PacketExtension, Instance {
         }
     }
 
-	@Override
+    /**
+     * Returns true if this DataForm has at least one FORM_TYPE field which is
+     * hidden. This method is used for sanity checks.
+     *
+     * @return
+     */
+    public boolean hasHiddenFormTypeField() {
+        boolean found = false;
+        for (FormField f : fields) {
+            if (f.getVariable().equals("FORM_TYPE") && f.getType() != null && f.getType().equals("hidden"))
+                found = true;
+        }
+        return found;
+    }
+
+    @Override
 	public void serialize(XmlSerializer serializer) throws IOException {
 		serializer.setPrefix("", getNamespace());
 		serializer.startTag(getNamespace(), getElementName());
@@ -266,15 +282,14 @@ public class DataForm implements PacketExtension, Instance {
             serializer.endTag(null, "reported");
     	}
 
-        public String toXML() {
-        	return SerializerUtils.toXml(this);
-        }
+		public String toXML() {
+			return SerializerUtils.toXml(this);
+		}
 
 		@Override
 		public boolean isValid() {
 			return true;
 		}
-
     }
     
     /**
@@ -318,10 +333,8 @@ public class DataForm implements PacketExtension, Instance {
 			return true;
 		}
     }
-
 	@Override
 	public boolean isValid() {
 		return true;
 	}
-
 }

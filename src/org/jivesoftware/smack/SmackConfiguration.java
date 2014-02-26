@@ -20,12 +20,18 @@
 
 package org.jivesoftware.smack;
 
-import org.xmlpull.v1.XmlPullParserFactory;
-import org.xmlpull.v1.XmlPullParser;
-
 import java.io.InputStream;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.Vector;
+
+import org.jivesoftware.smack.parsing.ParsingExceptionCallback;
+import org.jivesoftware.smack.parsing.ExceptionThrowingCallback;
+import org.xmlpull.v1.XmlPullParserFactory;
+import org.xmlpull.v1.XmlPullParser;
 
 /**
  * Represents the configuration of Smack. The configuration is used for:
@@ -44,7 +50,7 @@ import java.util.*;
  */
 public final class SmackConfiguration {
 
-    private static final String SMACK_VERSION = "3.2.0";
+    private static final String SMACK_VERSION = "3.3.1";
 
     private static int packetReplyTimeout = 5000;
     private static int keepAliveInterval = 30000;
@@ -53,6 +59,23 @@ public final class SmackConfiguration {
 
     private static boolean localSocks5ProxyEnabled = true;
     private static int localSocks5ProxyPort = 7777;
+    private static int packetCollectorSize = 5000;
+
+    /**
+     * defaultPingInterval (in seconds)
+     */
+    private static int defaultPingInterval = 1800; // 30 min (30*60)
+
+    /**
+     * The default parsing exception callback is {@link ExceptionThrowingCallback} which will
+     * throw an exception and therefore disconnect the active connection.
+     */
+    private static ParsingExceptionCallback defaultCallback = new ExceptionThrowingCallback();
+
+    /**
+     * This automatically enables EntityCaps for new connections if it is set to true
+     */
+    private static boolean autoEnableEntityCaps = true;
 
     private SmackConfiguration() {
     }
@@ -69,9 +92,9 @@ public final class SmackConfiguration {
             // Get an array of class loaders to try loading the providers files from.
             ClassLoader[] classLoaders = getClassLoaders();
             for (ClassLoader classLoader : classLoaders) {
-                Enumeration configEnum = classLoader.getResources("res/raw/smack_config.xml");
+                Enumeration<URL> configEnum = classLoader.getResources("res/raw/smack_config.xml");
                 while (configEnum.hasMoreElements()) {
-                    URL url = (URL) configEnum.nextElement();
+                    URL url = configEnum.nextElement();
                     InputStream systemStream = null;
                     try {
                         systemStream = url.openStream();
@@ -86,23 +109,31 @@ public final class SmackConfiguration {
                                     parseClassToLoad(parser);
                                 }
                                 else if (parser.getName().equals("packetReplyTimeout")) {
-                                    packetReplyTimeout =
-                                            parseIntProperty(parser, packetReplyTimeout);
+                                    packetReplyTimeout = parseIntProperty(parser, packetReplyTimeout);
                                 }
                                 else if (parser.getName().equals("keepAliveInterval")) {
                                     keepAliveInterval = parseIntProperty(parser, keepAliveInterval);
                                 }
                                 else if (parser.getName().equals("keepAliveResponse")) {
 									keepAliveResponse = parseIntProperty(parser, keepAliveResponse);
-								}
+                                }
                                 else if (parser.getName().equals("mechName")) {
                                     defaultMechs.add(parser.nextText());
-                                } else if (parser.getName().equals("localSocks5ProxyEnabled")) {
-                                    localSocks5ProxyEnabled = Boolean.parseBoolean(parser
-                                            .nextText());
-                                } else if (parser.getName().equals("localSocks5ProxyPort")) {
-                                    localSocks5ProxyPort = parseIntProperty(parser,
-                                            localSocks5ProxyPort);
+                                } 
+                                else if (parser.getName().equals("localSocks5ProxyEnabled")) {
+                                    localSocks5ProxyEnabled = Boolean.parseBoolean(parser.nextText());
+                                } 
+                                else if (parser.getName().equals("localSocks5ProxyPort")) {
+                                    localSocks5ProxyPort = parseIntProperty(parser, localSocks5ProxyPort);
+                                }
+                                else if (parser.getName().equals("packetCollectorSize")) {
+                                    packetCollectorSize = parseIntProperty(parser, packetCollectorSize);
+                                }
+                                else if (parser.getName().equals("defaultPingInterval")) {
+                                    defaultPingInterval = parseIntProperty(parser, defaultPingInterval);
+                                }
+                                else if (parser.getName().equals("autoEnableEntityCaps")) {
+                                    autoEnableEntityCaps = Boolean.parseBoolean(parser.nextText());
                                 }
                             }
                             eventType = parser.next();
@@ -163,6 +194,27 @@ public final class SmackConfiguration {
         }
         packetReplyTimeout = timeout;
     }
+
+    /**
+     * Gets the default max size of a packet collector before it will delete 
+     * the older packets.
+     * 
+     * @return The number of packets to queue before deleting older packets.
+     */
+    public static int getPacketCollectorSize() {
+    	return packetCollectorSize;
+    }
+
+    /**
+     * Sets the default max size of a packet collector before it will delete 
+     * the older packets.
+     * 
+     * @param The number of packets to queue before deleting older packets.
+     */
+    public static void setPacketCollectorSize(int collectorSize) {
+    	packetCollectorSize = collectorSize;
+    }
+
 
     /**
      * Returns the number of milleseconds delay between sending keep-alive
@@ -300,6 +352,61 @@ public final class SmackConfiguration {
      */
     public static void setLocalSocks5ProxyPort(int localSocks5ProxyPort) {
         SmackConfiguration.localSocks5ProxyPort = localSocks5ProxyPort;
+    }
+
+    /**
+     * Returns the default ping interval (seconds)
+     * 
+     * @return
+     */
+    public static int getDefaultPingInterval() {
+        return defaultPingInterval;
+    }
+
+    /**
+     * Sets the default ping interval (seconds). Set it to '-1' to disable the periodic ping
+     *
+     * @param defaultPingInterval
+     */
+    public static void setDefaultPingInterval(int defaultPingInterval) {
+        SmackConfiguration.defaultPingInterval = defaultPingInterval;
+    }
+
+    /**
+     * Check if Entity Caps are enabled as default for every new connection
+     * @return
+     */
+    public static boolean autoEnableEntityCaps() {
+        return autoEnableEntityCaps;
+    }
+
+    /**
+     * Set if Entity Caps are enabled or disabled for every new connection
+     * 
+     * @param true if Entity Caps should be auto enabled, false if not
+     */
+    public static void setAutoEnableEntityCaps(boolean b) {
+        autoEnableEntityCaps = b;
+    }
+
+    /**
+     * Set the default parsing exception callback for all newly created connections
+     *
+     * @param callback
+     * @see ParsingExceptionCallback
+     */
+    public static void setDefaultParsingExceptionCallback(ParsingExceptionCallback callback) {
+        defaultCallback = callback;
+    }
+
+    /**
+     * Returns the default parsing exception callback
+     * 
+     * @return the default parsing exception callback
+     * @see ParsingExceptionCallback
+     */
+    public static ParsingExceptionCallback getDefaultParsingExceptionCallback() {
+        return defaultCallback;
     }
 
     private static void parseClassToLoad(XmlPullParser parser) throws Exception {

@@ -20,10 +20,11 @@
 
 package org.jivesoftware.smackx;
 
-import org.xmlpull.v1.XmlSerializer;
-
 import com.xabber.xmpp.Instance;
 import com.xabber.xmpp.SerializerUtils;
+
+import org.jivesoftware.smack.util.StringUtils;
+import org.xmlpull.v1.XmlSerializer;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -305,6 +306,25 @@ public class FormField implements Instance {
     	return SerializerUtils.toXml(this);
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null)
+            return false;
+        if (obj == this)
+            return true;
+        if (!(obj instanceof FormField))
+            return false;
+
+        FormField other = (FormField) obj;
+
+        return toXML().equals(other.toXML());
+    }
+
+    @Override
+    public int hashCode() {
+        return toXML().hashCode();
+    }
+
     /**
      * Represents the available option of a given FormField.
      *
@@ -342,6 +362,7 @@ public class FormField implements Instance {
             return value;
         }
 
+        @Override
         public String toString() {
             return getLabel();
         }
@@ -367,11 +388,40 @@ public class FormField implements Instance {
 			return true;
 		}
 
-    }
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == null)
+                return false;
+            if (obj == this)
+                return true;
+            if (obj.getClass() != getClass())
+                return false;
 
+            Option other = (Option) obj;
+
+            if (!value.equals(other.value))
+                return false;
+
+            String thisLabel = label == null ? "" : label;
+            String otherLabel = other.label == null ? "" : other.label;
+
+            if (!thisLabel.equals(otherLabel))
+                return false;
+
+            return true;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 1;
+            result = 37 * result + value.hashCode();
+            result = 37 * result + (label == null ? 0 : label.hashCode());
+            return result;
+        }
+    }
+    
 	@Override
 	public boolean isValid() {
 		return true;
 	}
-
 }
